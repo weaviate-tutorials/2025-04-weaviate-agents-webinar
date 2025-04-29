@@ -1,6 +1,7 @@
 from typing import Dict, Any
 from weaviate import WeaviateClient
 from weaviate.agents.classes import PersonalizationAgentGetObjectsResponse
+from weaviate.classes.query import Filter
 
 
 # TA_DEMO_COLLECTION = "ForumPostSmall"  # For smaller collection
@@ -206,17 +207,20 @@ def compare_genre_match_scores(
         print(f"Total genre match score ({label}): {total_scores[idx]}")
 
 
-def print_movie_response_details(response: PersonalizationAgentGetObjectsResponse, n_objects: int = 5) -> None:
-    print(response.ranking_rationale)
+def print_movie_response_details(response: PersonalizationAgentGetObjectsResponse, n_objects: int = 5, verbose = False) -> None:
+    if response.ranking_rationale is not None:
+        print(f"Ranking rationale: {response.ranking_rationale}")
+
     for i, obj in enumerate(response.objects[:n_objects]):
         print(f"*****{i}*****")
         print(obj.properties["title"])
-        print(obj.properties["overview"])
         print(obj.properties["genres"])
-        print(obj.properties["release_date"])
-        print(f"vote_average: {obj.properties['vote_average']}")
-        print(f"vote_count: {obj.properties['vote_count']}")
-        print(f"popularity: {obj.properties['popularity']}")
+        if verbose:
+            print(obj.properties["overview"])
+            print(obj.properties["release_date"])
+            print(f"vote_average: {obj.properties['vote_average']}")
+            print(f"vote_count: {obj.properties['vote_count']}")
+            print(f"popularity: {obj.properties['popularity']}")
         if obj.original_rank is not None:
             print(f"original rank: {obj.original_rank}, personalized rank: {obj.personalized_rank}")
 
@@ -278,3 +282,37 @@ def compare_genre_match_scores(
     print("-" * (num_sets * 87 + 5))
     for idx, label in enumerate(response_labels):
         print(f"Total genre match score ({label}): {total_scores[idx]}")
+
+
+def get_movie_uuid(client: WeaviateClient, title: str):
+
+    movies_collection = client.collections.get(PA_DEMO_COLLECTION)
+
+    response = movies_collection.query.fetch_objects(
+        filters=Filter.by_property("title").equal(title),
+        limit=1
+    )
+
+    if len(response.objects) == 0:
+        print(f"Movie '{title}' not found in the collection. Trying to find a title containing all words...")
+        response = movies_collection.query.fetch_objects(
+            filters=Filter.by_property("title").contains_all(title),
+            limit=1
+        )
+
+    if len(response.objects) == 0:
+        print(f"Movie '{title}' not found in the collection. Trying to find a best matching title...")
+        response = movies_collection.query.hybrid(
+            query=title,
+            limit=1
+        )
+
+    if len(response.objects) == 0:
+        print(f"Movie '{title}' or similar not found in the collection")
+        return None
+
+    print(f"Fetched movie '{title}' from the collection")
+    movie = response.objects[0]
+
+    return movie.uuid
+
