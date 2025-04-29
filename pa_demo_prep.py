@@ -24,7 +24,7 @@ confirm_to_delete(client, PA_DEMO_COLLECTION)
 
 client.collections.create(
     PA_DEMO_COLLECTION,
-    description="A dataset that lists clothing items, their brands, prices, and more.",
+    description="A dataset of movies including their metadata.",
     vectorizer_config=Configure.Vectorizer.text2vec_weaviate(
         model="Snowflake/snowflake-arctic-embed-m-v1.5"
     ),
